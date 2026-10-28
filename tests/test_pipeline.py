@@ -55,3 +55,22 @@ def test_process_recordings_concatenates_and_reports_progress(recording, cfg):
     assert len(df) == 2 * len(process_recording(recording, cfg))
     empty = process_recordings([], cfg)
     assert isinstance(empty, pd.DataFrame) and empty.empty
+
+
+def test_temporal_smoothing_carries_confidence_over_abstained_windows():
+    from respira.pipeline import _add_temporal_smoothing
+
+    df = pd.DataFrame(
+        {
+            "subject": ["01"] * 3,
+            "window": [0, 1, 2],
+            "source": ["sf"] * 3,
+            "method": ["count"] * 3,
+            "rr_est": [10.0, np.nan, 10.0],
+            "confidence": [0.9, np.nan, 0.8],
+        }
+    )
+    out = _add_temporal_smoothing(df)
+    ts = out[out["source"] == "sf_ts"].sort_values("window")
+    assert ts["rr_est"].tolist() == [10.0, 10.0, 10.0]
+    assert ts["confidence"].tolist() == [0.9, 0.9, 0.8]

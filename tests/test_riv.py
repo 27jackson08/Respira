@@ -72,3 +72,16 @@ def test_empty_beats_produce_empty_rivs():
 def test_beat_series_shape_check():
     with pytest.raises(ValueError):
         BeatSeries(np.zeros(3), np.zeros(2))
+
+
+def test_fm_skips_intervals_spanning_dropped_beats():
+    from respira.beats import Beats
+
+    fs = 10.0
+    peak_times = np.array([0.0, 0.8, 1.6, 4.8, 5.6])  # the beat near 4.0 s was rejected
+    peaks = (peak_times * fs).astype(int)
+    beats = Beats(peaks, peaks - 2, fs)
+    rset = extract_rivs(np.arange(100, dtype=float), beats)
+    assert rset.bw.n == 5
+    assert np.allclose(rset.fm.values, [0.8, 0.8, 0.8])
+    assert np.allclose(rset.fm.t, [0.4, 1.2, 5.2])

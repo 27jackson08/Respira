@@ -19,6 +19,9 @@ from respira.beats import Beats
 from respira.config import PipelineConfig
 from respira.preprocess import bandpass, remove_mean, resample_uniform
 
+MAX_FM_INTERVAL_S = 60.0 / 40.0
+"""Longest peak-to-peak interval (40 beats/min) accepted as a single cardiac cycle."""
+
 
 @dataclass(frozen=True)
 class BeatSeries:
@@ -62,8 +65,13 @@ class UniformSignal:
         return UniformSignal(self.t[mask], remove_mean(self.y[mask]), self.fs)
 
 
-def extract_rivs(ppg: np.ndarray, beats: Beats) -> RIVSet:
-    """Measure BW, AM and FM on ``ppg`` at the detected beat positions."""
+def extract_rivs(ppg: np.ndarray, beats: Beats, max_interval_s: float = MAX_FM_INTERVAL_S) -> RIVSet:
+    """Measure BW, AM and FM on ``ppg`` at the detected beat positions.
+
+    Peak-to-peak intervals longer than ``max_interval_s`` are treated as gaps
+    (a rejected or missed beat) and contribute no FM sample, so that the FM
+    series does not contain spurious spikes spanning two cardiac cycles.
+    """
     ppg = np.asarray(ppg, dtype=float)
     if beats.n == 0:
         empty = BeatSeries(np.zeros(0), np.zeros(0))
@@ -75,7 +83,9 @@ def extract_rivs(ppg: np.ndarray, beats: Beats) -> RIVSet:
 
     bw = BeatSeries(t_peaks, 0.5 * (peak_amp + trough_amp))
     am = BeatSeries(t_peaks, peak_amp - trough_amp)
-    fm = BeatSeries(0.5 * (t_peaks[1:] + t_peaks[:-1]), np.diff(t_peaks))
+    intervals = np.diff(t_peaks)
+    keep = intervals <= max_interval_s
+    fm = BeatSeries((0.5 * (t_peaks[1:] + t_peaks[:-1]))[keep], intervals[keep])
     return RIVSet(bw, am, fm)
 
 

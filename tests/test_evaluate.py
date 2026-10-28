@@ -116,3 +116,20 @@ def test_plausibility_gate_table_partitions_windows(frame):
     table = ev.plausibility_gate_table(mixed, "bw", "ar")
     assert list(table["gate"]) == ["all windows", "plausible beats only", "implausible beats only"]
     assert table["n_windows"].iloc[1] + table["n_windows"].iloc[2] == table["n_windows"].iloc[0]
+
+
+def test_gated_metrics_keep_coverage_relative_to_all_reference_windows(frame):
+    gated = ev.metrics_by_algorithm(frame, sqi_threshold=0.7).set_index("algorithm")
+    assert gated.loc["bw:ar", "n_est"] == 2
+    assert gated.loc["bw:ar", "n_ref"] == 6
+    assert gated.loc["bw:ar", "coverage"] == pytest.approx(2 / 6)
+
+
+def test_nan_and_negative_sqi_count_as_zero_quality(frame):
+    odd = frame.assign(sqi=np.where(frame["window"] == 0, np.nan, np.where(frame["window"] == 1, -0.2, 1.0)))
+    sweep = ev.sqi_sweep(odd, "bw", "ar", thresholds=[0.0, 0.5])
+    assert sweep["coverage"].iloc[0] == pytest.approx(1.0)
+    assert sweep["coverage"].iloc[1] == pytest.approx(2 / 6)
+    bins = ev.metrics_by_sqi_bin(odd, "bw", "ar", edges=(0.0, 0.5, 1.01))
+    assert bins["n_ref"].sum() == 6
+    assert bins["n_ref"].iloc[0] == 4

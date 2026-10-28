@@ -121,7 +121,14 @@ def _add_temporal_smoothing(df: pd.DataFrame, source: str = "sf", new_source: st
     smoothed = []
     for _, group in base.groupby("method", sort=False):
         ordered = group.sort_values("window")
-        smoothed.append(ordered.assign(source=new_source, rr_est=temporal_smooth(ordered["rr_est"].to_numpy())))
+        carried_confidence = ordered["confidence"].where(ordered["rr_est"].notna()).ffill()
+        smoothed.append(
+            ordered.assign(
+                source=new_source,
+                rr_est=temporal_smooth(ordered["rr_est"].to_numpy()),
+                confidence=carried_confidence.to_numpy(),
+            )
+        )
     return pd.concat([df, *smoothed], ignore_index=True)
 
 

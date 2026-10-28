@@ -27,12 +27,12 @@ annotators agree on. Errors in breaths per minute (bpm). Full tables in
 | --- | --- | --- | --- | --- | --- | --- |
 | `bw:count` (baseline wander, breath counting) | **2.26** | 1.71 | -1.24 | -7.4 to 4.9 | 56 % | 100 % |
 | `bw:periodogram` (baseline wander, spectral peak) | 2.30 | **0.46** | -1.75 | -9.8 to 6.3 | **75 %** | 100 % |
-| `sf_ts:count` (Smart Fusion + temporal smoothing) | 2.64 | 2.20 | -1.05 | -7.2 to 5.1 | 46 % | 98 % |
-| `sf:count` (Smart Fusion of BW/AM/FM) | 2.75 | 2.26 | -1.31 | -7.8 to 5.2 | 46 % | 77 % |
-| `spectral:periodogram` (averaged BW/AM/FM spectra) | 3.17 | 0.54 | -2.15 | -12.3 to 8.0 | 68 % | 100 % |
+| `sf_ts:count` (Smart Fusion + temporal smoothing) | 2.57 | 2.12 | -0.91 | -7.0 to 5.2 | 48 % | 98 % |
+| `sf:count` (Smart Fusion of BW/AM/FM) | 2.66 | 2.19 | -1.17 | -7.5 to 5.2 | 47 % | 78 % |
+| `spectral:periodogram` (averaged BW/AM/FM spectra) | 3.08 | 0.52 | -2.03 | -12.0 to 8.0 | 69 % | 100 % |
 | `filt:periodogram` (raw PPG band-passed, no beat detection) | 4.62 | 0.49 | 1.58 | -17.8 to 20.9 | 70 % | 100 % |
-| `am:periodogram` (amplitude modulation only) | 5.84 | 5.08 | -3.67 | | 38 % | 100 % |
-| `fm:periodogram` (frequency modulation only) | 6.76 | 6.14 | -0.81 | | 35 % | 100 % |
+| `am:periodogram` (amplitude modulation only) | 5.84 | 5.08 | -3.67 | -17.3 to 10.0 | 38 % | 100 % |
+| `fm:periodogram` (frequency modulation only) | 6.59 | 5.64 | -0.22 | -17.8 to 17.4 | 36 % | 100 % |
 | *Bedside monitor impedance RR numeric (not PPG)* | *1.17* | *0.39* | *0.00* | *-5.8 to 5.8* | *88 %* | *100 %* |
 
 CP2 is the fraction of estimates within 2 bpm of the reference. Coverage is
@@ -50,12 +50,12 @@ mean MAE of 2.3 bpm and a median of 0.5-1.7 bpm at full coverage.
 
 1. **Baseline wander carries almost all of the usable respiratory
    information in ICU PPG.** BW-based estimators score MAE 2.3 bpm; amplitude
-   and frequency modulation alone score 5.8 and 6.8 bpm. Respiratory sinus
+   and frequency modulation alone score 5.8 and 6.6 bpm. Respiratory sinus
    arrhythmia (FM) is weak or absent in sedated, ventilated and arrhythmic
    patients, and AM is corrupted by vasoactive drugs and perfusion changes.
 
 2. **Fusion does not help here.** Smart Fusion averages BW with the two poor
-   modulations and discards disagreeing windows, so it loses coverage (77 %)
+   modulations and discards disagreeing windows, so it loses coverage (78 %)
    without gaining accuracy. This is the opposite of what the healthy-subject
    literature reports and is a direct consequence of point 1.
 
@@ -67,11 +67,11 @@ mean MAE of 2.3 bpm and a median of 0.5-1.7 bpm at full coverage.
 
    | Configuration | `bw:periodogram` | `bw:count` | `filt:periodogram` | `sf:count` |
    | --- | --- | --- | --- | --- |
-   | 32 s, 4-60 bpm (default, Charlton et al. band) | 2.30 | 2.26 | 4.62 | 2.75 |
-   | 32 s, 6-45 bpm | 1.89 | 1.96 | 2.28 | 2.37 |
-   | 32 s, 8-40 bpm | 1.45 | 1.54 | 1.82 | 2.01 |
-   | 64 s, 4-60 bpm | 2.00 | 2.13 | 3.78 | 2.74 |
-   | 64 s, 8-40 bpm | **1.37** | 1.44 | 1.55 | 1.87 |
+   | 32 s, 4-60 bpm (default, Charlton et al. band) | 2.30 | 2.26 | 4.62 | 2.66 |
+   | 32 s, 6-45 bpm | 1.89 | 1.96 | 2.28 | 2.28 |
+   | 32 s, 8-40 bpm | 1.45 | 1.54 | 1.82 | 1.96 |
+   | 64 s, 4-60 bpm | 2.00 | 2.13 | 3.78 | 2.64 |
+   | 64 s, 8-40 bpm | **1.37** | 1.44 | 1.55 | 1.85 |
 
    The 4-60 band is kept as the default because the narrower bands cannot
    detect bradypnoea below 8 bpm, which is exactly the kind of event an ICU
@@ -177,7 +177,7 @@ src/respira/
   synth.py        synthetic PPG generator with known RR (tests and demo)
   data/bidmc.py   PhysioNet downloader and CSV loader
   cli.py          `respira` command
-tests/            109 pytest cases, 97 % line coverage, synthetic BIDMC fixtures
+tests/            113 pytest cases, 97 % line coverage, synthetic BIDMC fixtures
 docs/research.md  background, literature, dataset notes, design rationale
 results/          committed evaluation outputs for the default and sensitivity runs
 ```

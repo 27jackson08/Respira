@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 import numpy as np
 import pandas as pd
@@ -75,9 +75,18 @@ def reference_windows(df: pd.DataFrame) -> pd.DataFrame:
     return df[df["ref_valid"].astype(bool) & np.isfinite(df["rr_ref"])]
 
 
+def effective_sqi(df: pd.DataFrame) -> pd.Series:
+    """Template SQI with undefined (too few beats) or negative values mapped to 0.
+
+    A threshold of 0 therefore means "every window", and such windows land in
+    the lowest SQI bin instead of silently disappearing.
+    """
+    return df["sqi"].astype(float).fillna(0.0).clip(lower=0.0)
+
+
 def quality_gate(df: pd.DataFrame, sqi_threshold: float, *, require_plausible: bool = True) -> pd.DataFrame:
     """Rows from windows with template SQI >= threshold and, optionally, plausible beat intervals."""
-    ok = df["sqi"] >= sqi_threshold
+    ok = effective_sqi(df) >= sqi_threshold
     if require_plausible:
         ok = ok & df["plausible"].astype(bool)
     return df[ok]
@@ -90,13 +99,18 @@ def window_level(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def metrics_by_algorithm(df: pd.DataFrame, sqi_threshold: float | None = None) -> pd.DataFrame:
-    """One row per algorithm, sorted by MAE. Optionally gated on SQI."""
+    """One row per algorithm, sorted by MAE.
+
+    With ``sqi_threshold`` the error metrics are computed on windows passing the
+    quality gate, while ``coverage`` stays relative to *all* reference windows
+    so that gated and ungated rows are comparable.
+    """
     base = reference_windows(df)
-    if sqi_threshold is not None:
-        base = quality_gate(base, sqi_threshold)
     records = []
     for (source, method), group in base.groupby(["source", "method"], sort=False):
-        m = compute_metrics(group["rr_est"].to_numpy(), group["rr_ref"].to_numpy())
+        scored = group if sqi_threshold is None else quality_gate(group, sqi_threshold)
+        m = compute_metrics(scored["rr_est"].to_numpy(), scored["rr_ref"].to_numpy())
+        m = replace(m, n_ref=len(group), coverage=m.n_est / len(group) if len(group) else 0.0)
         records.append({"source": source, "method": method, "algorithm": f"{source}:{method}", **m.as_dict()})
     out = pd.DataFrame(records)
     return (
@@ -186,7 +200,7 @@ def metrics_by_sqi_bin(
 ) -> pd.DataFrame:
     base = reference_windows(select_algorithm(df, source, method))
     labels = [f"[{lo:.2f}, {hi:.2f})" for lo, hi in itertools.pairwise(edges)]
-    binned = pd.cut(base["sqi"], bins=list(edges), labels=labels, right=False, include_lowest=True)
+    binned = pd.cut(effective_sqi(base), bins=list(edges), labels=labels, right=False, include_lowest=True)
     records = []
     for label in labels:
         group = base[binned == label]
